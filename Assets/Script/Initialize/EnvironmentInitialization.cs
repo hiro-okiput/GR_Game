@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using GR_Game.Struct;
 using GR_Game;
@@ -111,5 +112,11 @@ public class EnvironmentInitialization : MonoBehaviour
 
             SetValue(inputField, slider, value);
         }
+    }
+
+    //‰Šú‰»I—¹ˆ—
+    public void EndInitialize()
+    {
+        SceneManager.LoadScene("Main");
     }
 }

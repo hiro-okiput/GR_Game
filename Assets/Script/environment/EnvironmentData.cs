@@ -1,4 +1,5 @@
 using GR_Game.Struct;
+using GR_Game.Enum;
 
 namespace GR_Game
 {
@@ -7,8 +8,13 @@ namespace GR_Game
         static private float gravity;           //重力
         static private TimeData currentTime;    //月日日時
         static private float windSpeed;         //風速
-        static private int windDirection;       //風向
+        static private float windSpeedMin;      //風速_最低
+        static private float windSpeedMax;      //風速_最高
+        static private Direction windDirection; //風向
         static private float temperature;       //気温
+        static private float temperatureMin;    //気温_最低
+        static private float temperatureMax;    //気温_最高
+        static private Weather weather;         //天気
 
         //重力を設定
         static public void SetGravity(float num) => gravity = num;
@@ -26,10 +32,20 @@ namespace GR_Game
         static public void SetSecond(int num) => currentTime.second = num;
         //風速を設定
         static public void SetWindSpeed(float num) => windSpeed = num;
+        //風速_最低を設定
+        static public void SetWindSpeedMin(float num) => windSpeedMin = num;
+        //風速_最高を設定
+        static public void SetWindSpeedMax(float num) => windSpeedMax = num;
         //風向を設定
-        static public void SetWindDirection(int num) => windDirection = num;
+        static public void SetWindDirection(Direction dir) => windDirection = dir;
         //気温を設定
         static public void SetTemperature(float num) => temperature = num;
+        //気温_最低を設定
+        static public void SetTemperatureMin(float num) => temperatureMin = num;
+        //気温_最高を設定
+        static public void SetTemperatureMax(float num) => temperatureMax = num;
+        //天気を設定
+        static public void SetWeather(Weather wea) => weather = wea;
 
         //重力を取得
         static public float GetGravity() => gravity;
@@ -47,10 +63,20 @@ namespace GR_Game
         static public int GetSecond() => currentTime.second;
         //風速を取得
         static public float GetWindSpeed() => windSpeed;
+        //風速_最低を取得
+        static public float GetWindSpeedMin() => windSpeedMin;
+        //風速_最高を取得
+        static public float GetWindSpeedMax() => windSpeedMax;
         //風向を取得
-        static public int GetWindDirection() => windDirection;
+        static public Direction GetWindDirection() => windDirection;
         //気温を取得
         static public float GetTemperature() => temperature;
+        //気温_最低を取得
+        static public float GetTemperatureMin() => temperatureMin;
+        //気温_最高を取得
+        static public float GetTemperatureMax() => temperatureMax;
+        //天気を取得
+        static public Weather GetWeather() => weather;
 
         //地球と同じに初期化
         static public void InitializeToEarth()
