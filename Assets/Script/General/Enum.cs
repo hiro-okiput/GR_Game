@@ -21,7 +21,6 @@ namespace GR_Game.Enum
         Fine = 0,
         Rainy,
         Cloudy,
-        Snowy,
         Max,
     }
 }
