@@ -117,6 +117,6 @@ public class EnvironmentInitialization : MonoBehaviour
     //‰Šú‰»I—¹ˆ—
     public void EndInitialize()
     {
-        SceneManager.LoadScene("Main");
+        SceneManager.LoadScene("Pendulum");
     }
 }

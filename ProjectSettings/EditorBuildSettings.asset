@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Main.unity
     guid: c1e094b03922880419f0b592ff84e975
+  - enabled: 1
+    path: Assets/Scenes/PhysicalSimuration/Pendulum.unity
+    guid: 77fcfee32f4f415449e2b945e82f1102
   m_configObjects: {}
