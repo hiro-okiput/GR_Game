@@ -1,9 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
-using static UnityEngine.Rendering.DebugUI;
 
 namespace GR_Game.Math
 {
@@ -48,5 +46,17 @@ namespace GR_Game.Math
 
             return (float)result;
         }
+
+        public static Vector2 Vector2Dif(Vector2 vec1, Vector2 vec2)
+        {
+            Vector2 resultVec = Vector2.zero;
+            return resultVec;
+        }
+
+    }
+
+    public class GR_GamePysics
+    {
+        public  Crush
     }
 }
