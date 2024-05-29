@@ -47,16 +47,50 @@ namespace GR_Game.Math
             return (float)result;
         }
 
-        public static Vector2 Vector2Dif(Vector2 vec1, Vector2 vec2)
+        public static Vector3 Vector3Dif(Vector3 vec1, Vector3 vec2)
         {
-            Vector2 resultVec = Vector2.zero;
+            Vector3 resultVec = Vector3.zero;
+            resultVec.x = vec1.x - vec2.x;
+            resultVec.y = vec1.y - vec2.y;
+            resultVec.z = vec1.z - vec2.z;
             return resultVec;
         }
 
+        public static Vector3 Vector3Sum(Vector3 vec1, Vector3 vec2)
+        {
+            Vector3 resultVec = Vector3.zero;
+            resultVec.x = vec1.x + vec2.x;
+            resultVec.y = vec1.y + vec2.y;
+            resultVec.z = vec1.z + vec2.z;
+            return resultVec;
+        }
+
+        public static float Vector3Dot(Vector3 vec1, Vector3 vec2)
+        {
+            float result;
+
+            result = vec1.x * vec2.x + vec1.y * vec2.y + vec1.z * vec2.z;
+
+            return result;
+        }
+
+        public static Vector3 Vector3Cross(Vector3 vec1, Vector3 vec2)
+        {
+            Vector3 resultVec = Vector3.zero;
+
+            resultVec.x = vec1.y * vec2.z - vec1.z * vec2.y;
+            resultVec.y = vec1.z * vec2.x - vec1.x * vec2.z;
+            resultVec.z = vec1.x * vec2.y - vec1.y * vec2.x;
+
+            return resultVec;
+        }
     }
 
     public class GR_GamePysics
     {
-        public  Crush
+        public static void Crush()
+        {
+
+        }
     }
 }
