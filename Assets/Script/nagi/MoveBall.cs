@@ -19,7 +19,7 @@ public class MoveBall : MonoBehaviour
     //private int time = 0;
 
     //ˆê“x‚¾‚¯
-    bool firstCheck = false;
+    public bool firstCheck = false;
 
     [SerializeField]
     private Button launchButton;
