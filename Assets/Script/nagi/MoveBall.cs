@@ -8,9 +8,9 @@ public class MoveBall : MonoBehaviour
 {
     #region 変数宣言
     ////初速
-    private float velocity0 = 0;
+    private int velocity0 = 0;
     //角度
-    private float theta = 0;
+    private int theta = 0;
     //方向
     Vector3 direction;
     ////重力
@@ -36,10 +36,21 @@ public class MoveBall : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        theta = thetaSlider.value;
-        velocity0 = velocitySlider.value;
+
     }
 
+    //角度調整
+    public void ChangeThetaValue()
+    {
+        theta = (int)thetaSlider.value;
+    }
+    //速度調整
+    public void ChangeVelocityValue()
+    {
+        velocity0 = (int)velocitySlider.value;
+    }
+
+    //発射時
     public void LaunchButton()
     {
         if (!firstCheck)
@@ -56,9 +67,9 @@ public class MoveBall : MonoBehaviour
         }
     }
 
+    //ラジアン変換
     void ChangeRadian()
     {
-        Debug.Log(thetaSlider.value);
         float rad = theta * 3.14f / 180;
 
         direction.x = Mathf.Cos(rad);
