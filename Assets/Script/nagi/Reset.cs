@@ -9,7 +9,7 @@ public class Reset : MonoBehaviour
     [SerializeField]
     private GameObject ball;
     [SerializeField]
-    private Slider thetaSlider, velocitySlider;
+    private Slider thetaSlider, velocitySlider,gravitySlider;
     [SerializeField]
     private TMP_InputField thetaField;
 
@@ -31,9 +31,10 @@ public class Reset : MonoBehaviour
         ball.transform.position = ballPos;
         rb.velocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
-        thetaSlider.value = 0;
-        velocitySlider.value = 0;
-        thetaField.text = "0";
+        //thetaSlider.value = 0;
+        //velocitySlider.value = 0;
+        //gravitySlider.value = 9.8f;
+        //thetaField.text = "0";
         moveBall.firstCheck = false;
     }
     

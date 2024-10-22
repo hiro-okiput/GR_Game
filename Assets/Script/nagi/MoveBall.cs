@@ -14,7 +14,7 @@ public class MoveBall : MonoBehaviour
     //ï˚å¸
     Vector3 direction;
     ////èdóÕ
-    //private int gravity = 0;
+    private float gravity = 0;
     ////éûä‘
     //private int time = 0;
 
@@ -24,7 +24,7 @@ public class MoveBall : MonoBehaviour
     [SerializeField]
     private Button launchButton;
     [SerializeField]
-    private Slider thetaSlider,velocitySlider;
+    private Slider thetaSlider,velocitySlider,gravitySlider;
     #endregion
 
     // Start is called before the first frame update
@@ -50,6 +50,11 @@ public class MoveBall : MonoBehaviour
         velocity0 = (int)velocitySlider.value;
     }
 
+    public void ChangeGravityValue()
+    {
+        gravity = gravitySlider.value;
+    }
+
     //î≠éÀéû
     public void LaunchButton()
     {
@@ -60,7 +65,8 @@ public class MoveBall : MonoBehaviour
             Vector3 force = velocity0 * direction;
 
             Rigidbody rb = this.gameObject.GetComponent<Rigidbody>();
-
+            Debug.Log(gravity);
+            rb.velocity = new Vector3(rb.velocity.x, -gravity, rb.velocity.z);
             rb.AddForce(force, ForceMode.Impulse);
 
             firstCheck = true;
