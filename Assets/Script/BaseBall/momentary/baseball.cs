@@ -65,7 +65,7 @@ public class baseball : MonoBehaviour
     private void Playball()         //パラメータ確定、計算メソッド呼び出し
     {
         //メンバ変数にそれぞれの速さを保存
-        //この時にkm/hからm/hに変換しておく
+        //この時にkm/hからm/sに変換しておく
         m_ballSpeed = (float)(BallSpeedSlider.value / 3.6);
         m_batSpeed = (float)(BatSpeedSlider.value / 3.6);
 
@@ -98,7 +98,8 @@ public class baseball : MonoBehaviour
             {
                 // 衝突時の速度計算
                 vx += Hx;
-                vy = -vy + Hy * batRestitutionCoefficient;          //反発係数を計算
+                vy += Hy;          //反発係数を計算
+                //vy = -vy + Hy * batRestitutionCoefficient;          //反発係数を計算
                 vz += Hz;
 
                 // 衝突後の位置を計算
@@ -110,8 +111,10 @@ public class baseball : MonoBehaviour
             {
                 // 衝突後のボールの座標を計算
                 x = ballPosition.x + vx * timeElapsed;
-                y = ballPosition.y + vy * timeElapsed;
-                z = ballPosition.z + vz * timeElapsed - (0.5f * g * Mathf.Pow(timeElapsed, 2));
+                y = vy * timeElapsed;
+                //y = ballPosition.y + vy * timeElapsed;
+                z = vz * timeElapsed - (0.5f * 9.8f * Mathf.Pow(timeElapsed, 2));
+                //z = ballPosition.z + vz * timeElapsed - (0.5f * 9.8f * Mathf.Pow(timeElapsed, 2));
 
             }
 
