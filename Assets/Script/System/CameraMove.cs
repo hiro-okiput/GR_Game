@@ -34,7 +34,7 @@ public class CameraMove : MonoBehaviour
             Vector3 mouseMove = currentMousePosition - initMousePosition;
             Vector3 newRotate = Vector3.zero;
             newRotate.y = initRotate.y + mouseMove.x * rotateSpeed;
-            newRotate.x = Mathf.Clamp(initRotate.x + mouseMove.y * rotateSpeed, -90f, 90f);
+            newRotate.x = Mathf.Clamp((initRotate.x > 180 ? initRotate.x - 360 : initRotate.x) + mouseMove.y * rotateSpeed, -90f, 90f);
             transform.eulerAngles = newRotate;
         }
     }

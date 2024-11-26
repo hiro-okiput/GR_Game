@@ -20,16 +20,13 @@ public class Shape : MonoBehaviour
         {
             Vector3 screenPoint = mainCamera.ScreenToWorldPoint(new Vector3(mousePosition.x, mousePosition.y, 10f));
             transform.position = screenPoint;
+            if(!GetComponent<MeshRenderer>().enabled)GetComponent<Renderer>().enabled = true;
             if(Input.GetMouseButtonDown((int)MouseButton.Left))
             {
                 enablePysics = true;
+                GetComponent<PhysicsComponent>().enabled = true;
             }
         }
-        else
-        {
-            Debug.Log("マウスカーソルは画面外です");
-        }
-        
     }
 
     public bool GetEnablePysics() => enablePysics;
