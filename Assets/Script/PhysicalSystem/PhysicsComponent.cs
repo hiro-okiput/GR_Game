@@ -7,9 +7,8 @@ public class PhysicsComponent : MonoBehaviour
 {
     [SerializeField]
     private bool gravityEnable = true;
-    
-    private Vector3 moveVector = Vector3.zero;
-    private bool contact = false;
+
+    private Vector3 moveVelocity = Vector3.zero;
 
     void Start()
     {
@@ -24,12 +23,13 @@ public class PhysicsComponent : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if(gravityEnable) moveVelocity.y += GetGravity() * Physics.gravity.y * Time.fixedDeltaTime * 0.01f;
 
         Bounds myBounds = GetComponent<Collider>().bounds;
 
         Collider[] colliders = Physics.OverlapBox(myBounds.center, myBounds.extents);
 
-        contact = false;
+        Vector3 totalOverlap = Vector3.zero;
 
         foreach (Collider collider in colliders)
         {
@@ -37,14 +37,40 @@ public class PhysicsComponent : MonoBehaviour
             {
                 Shape shape = collider.gameObject.GetComponent<Shape>();
                 if (shape != null && !shape.GetEnablePysics()) continue;
-
-                contact = true;
+                totalOverlap += CalculateOverlap(myBounds, collider);
             }
         }
 
-        if (contact) return;
+        transform.position += moveVelocity;
+        transform.position += totalOverlap;
+    }
 
-        if (gravityEnable) moveVector.y += GetGravity() * Physics.gravity.y * 0.01f * Time.fixedDeltaTime;
-        transform.position += moveVector;
+    private Vector3 CalculateOverlap(Bounds myBounds, Collider hitCollider)
+    {
+        Vector3 overlap = Vector3.zero;
+        Bounds hitBounds = hitCollider.bounds;
+
+        Vector3 hitPoint = hitCollider.ClosestPointOnBounds(transform.position);
+
+        Debug.Log(hitPoint);
+
+        Vector3 BoundsMax = myBounds.max + moveVelocity;
+        Vector3 BoundsMin = myBounds.min + moveVelocity;
+
+        if (hitPoint.y <= myBounds.center.y)
+        {
+            moveVelocity.y = 0;
+            overlap.y = Mathf.Max(0, hitPoint.y - BoundsMin.y);
+        }
+        else overlap.y = -(Mathf.Max(0, BoundsMax.y - hitPoint.y));
+
+        if (hitPoint.x <= myBounds.center.x)
+        {
+            moveVelocity.y = 0;
+            overlap.x = Mathf.Max(0, hitPoint.x - BoundsMin.x);
+        }
+        else overlap.x = -(Mathf.Max(0, BoundsMax.x - hitPoint.x));
+
+        return overlap * 0.5f;
     }
 }
