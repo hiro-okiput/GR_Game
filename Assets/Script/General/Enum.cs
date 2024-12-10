@@ -19,4 +19,11 @@ namespace GR_Game.Enum
         Cloudy,
         Max,
     }
+
+    public enum Axes
+    {
+        X = 0,
+        Y,
+        Z,
+    }
 }
