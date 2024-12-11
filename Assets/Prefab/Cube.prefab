@@ -132,3 +132,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gravityEnable: 1
+  boundsTolerance: 0.01

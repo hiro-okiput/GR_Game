@@ -11,6 +11,11 @@ public class ShapeGenerate : MonoBehaviour
     private GameObject nowObject;
     private int shapeIndex = 0;
 
+    private void Awake()
+    {
+        Application.targetFrameRate = 60;
+    }
+
     // Update is called once per frame
     void Update()
     {
