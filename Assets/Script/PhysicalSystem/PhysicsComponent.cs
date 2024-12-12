@@ -28,6 +28,8 @@ public class PhysicsComponent : MonoBehaviour
 
     PhysicsComponent hitPhysicsCom;
 
+    private bool isHit = false;
+
     private Vector3 moveVelocity = Vector3.zero;
 
     private List<Vector3> hitPointCenters = new();
@@ -44,7 +46,7 @@ public class PhysicsComponent : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log(moveVelocity);
+
     }
 
     private void FixedUpdate()
@@ -52,7 +54,7 @@ public class PhysicsComponent : MonoBehaviour
         if (gravityEnable)
         {
             if(gravity == Vector3.zero) gravity = GetGravity() * Physics.gravity * Time.fixedDeltaTime * 0.03f;
-            moveVelocity += gravity;
+            if(!isHit) moveVelocity += gravity;
         }
 
         Bounds myBounds = GetComponent<Collider>().bounds;
@@ -62,6 +64,8 @@ public class PhysicsComponent : MonoBehaviour
         List<Collider> colliders = Physics.OverlapBox(myBounds.center, myBounds.extents, transform.rotation).ToList();
 
         Vector3 totalSink = Vector3.zero;
+
+        isHit = false;
 
         hitPointCenters.Clear();
         contactForces.Clear();
@@ -93,8 +97,10 @@ public class PhysicsComponent : MonoBehaviour
 
                 if (GR_GameMath.Vector3Dot(sinkDirection, Vector3.up) > 0.5f && gravityEnable)
                 {
-                    if (hitPhysicsCom != null) CalculateVelocity(hitMoveVelocity, hitMass, sinkDirection);
+                    if(hitPhysicsCom != null)CalculateVelocity(hitMoveVelocity, hitMass, sinkDirection);
                     else moveVelocity.y = 0;
+
+                    isHit = true;
                 }
 
                 CalculateForces(hitMoveVelocity, sinkDirection, hitMass);
@@ -120,7 +126,7 @@ public class PhysicsComponent : MonoBehaviour
 
         Vector3 velocityNormalAfter = (mass * velocityNormal + hitMass * hitVelocityNomal) / (mass + hitMass);
 
-        moveVelocity = velocityNormalAfter + velocityTangent;
+        if(Vector3.Magnitude(velocityNormalAfter + velocityTangent) > 0.02f) moveVelocity = velocityNormalAfter + velocityTangent;
     }
 
     private void CalculateSink(Transform hitObj, out Vector3 direction, out float depth)
