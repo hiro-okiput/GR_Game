@@ -38,6 +38,14 @@ public class PhysicsComponent : MonoBehaviour
 
     private Vector3 gravity = Vector3.zero;
 
+    private List<Vector3> hitMoveVelocityList = new();
+
+    private List<float> hitMassList = new();
+
+    private List<Vector3> sinkDirectionList = new();
+
+    private List<Vector3> nomalAxisList = new();
+
     void Start()
     {
 
@@ -68,7 +76,11 @@ public class PhysicsComponent : MonoBehaviour
         isHit = false;
 
         hitPointCenters.Clear();
-        contactForces.Clear();
+        contactForces.Clear(); 
+        hitMoveVelocityList.Clear();
+        hitMassList.Clear();
+        sinkDirectionList.Clear();
+        nomalAxisList.Clear();
 
         foreach (Collider collider in colliders)
         {
@@ -86,6 +98,9 @@ public class PhysicsComponent : MonoBehaviour
                     hitMoveVelocity = hitPhysicsCom.GetMoveVelocity();
                 }
 
+                hitMoveVelocityList.Add(hitMoveVelocity);
+                hitMassList.Add(hitMass);
+
                 if (shape != null && !shape.GetEnablePysics()) continue;
 
                 Vector3 sinkDirection = Vector3.zero;
@@ -93,18 +108,23 @@ public class PhysicsComponent : MonoBehaviour
 
                 CalculateSink(collider.gameObject.transform, out sinkDirection, out sinkDepth);
 
+                sinkDirectionList.Add(sinkDirection);
+                nomalAxisList.Add(sinkDirection);
+
                 totalSink += sinkDirection * sinkDepth * 0.5f;
 
-                if (GR_GameMath.Vector3Dot(sinkDirection, Vector3.up) > 0.5f && gravityEnable)
+                if (GR_GameMath.Vector3Dot(sinkDirection, -moveVelocity.normalized) > 0.5f || moveVelocity != Vector3.zero)
                 {
-                    if(hitPhysicsCom != null)CalculateVelocity(hitMoveVelocity, hitMass, sinkDirection);
-                    else moveVelocity.y = 0;
+                    if (hitPhysicsCom != null) CalculateVelocity(hitMoveVelocity, hitMass, sinkDirection);
+                    else moveVelocity = Vector3.zero;
 
                     isHit = true;
                 }
-
-                CalculateForces(hitMoveVelocity, sinkDirection, hitMass);
             }
+        }
+        for(int i = 0; i < sinkDirectionList.Count; i++)
+        {
+            CalculateForces(hitMoveVelocityList[i], nomalAxisList[i], hitMassList[i], sinkDirectionList);
         }
 
         transform.position += moveVelocity;
@@ -113,9 +133,9 @@ public class PhysicsComponent : MonoBehaviour
 
     private void CalculateVelocity(Vector3 hitMoveVelocity, float hitMass, Vector3 normal)
     {
-        if (hitMoveVelocity.y == 0)
+        if (Vector3.Dot(hitMoveVelocity, -moveVelocity.normalized) == 0)
         {
-            moveVelocity.y = 0;
+            moveVelocity = Vector3.zero;
             return;
         }
 
@@ -173,7 +193,7 @@ public class PhysicsComponent : MonoBehaviour
         depth = minOverlap;
     }
 
-    private void CalculateForces(Vector3 hitMoveVelocity, Vector3 nomalAxis, float hitMass)
+    private void CalculateForces(Vector3 hitMoveVelocity, Vector3 nomalAxis, float hitMass, List<Vector3> sinkDirectionList)
     {
         float relativeVelocity = Vector3.Dot(moveVelocity - hitMoveVelocity, nomalAxis);
 
@@ -210,6 +230,11 @@ public class PhysicsComponent : MonoBehaviour
         }
 
         Vector3 slidingForce = tangentGravity + frictionForce;
+
+        for (int i = 0; i < sinkDirectionList.Count; i++)
+        {
+            if (GR_GameMath.Vector3Dot(sinkDirectionList[i], -slidingForce.normalized) > 0.5f) slidingForce = Vector3.zero;
+        }
 
         contactForces.Add(slidingForce);
 
