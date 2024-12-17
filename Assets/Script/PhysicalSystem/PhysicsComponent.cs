@@ -8,6 +8,7 @@ using GR_Game.Enum;
 using GR_Game.Math;
 using System.Linq;
 using static UnityEditor.PlayerSettings;
+using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 public class PhysicsComponent : MonoBehaviour
 {
@@ -30,6 +31,8 @@ public class PhysicsComponent : MonoBehaviour
 
     private bool isHit = false;
 
+    private bool torqueEnable = false;
+
     private Vector3 moveVelocity = Vector3.zero;
 
     private List<Vector3> hitPointCenters = new();
@@ -45,6 +48,12 @@ public class PhysicsComponent : MonoBehaviour
     private List<Vector3> sinkDirectionList = new();
 
     private List<Vector3> nomalAxisList = new();
+
+    List<Vector3[]> edges = new();
+
+    List<Vector3> crossPoints = new();
+
+    private Vector3 torquePoint = Vector3.zero;
 
     void Start()
     {
@@ -81,6 +90,8 @@ public class PhysicsComponent : MonoBehaviour
         hitMassList.Clear();
         sinkDirectionList.Clear();
         nomalAxisList.Clear();
+        edges.Clear();
+        crossPoints.Clear();
 
         foreach (Collider collider in colliders)
         {
@@ -246,6 +257,7 @@ public class PhysicsComponent : MonoBehaviour
         List<Vector3> myhitPoints = new();
         List<Vector3> otherHitPoints = new();
         List<Vector3> hitPoints;
+        List<Vector3> containHitPoints;
 
         for (int i = 0; i < myVertices.Count; i++)
         {
@@ -261,11 +273,12 @@ public class PhysicsComponent : MonoBehaviour
 
         if (myhitPoints.Count > 1)
         {
-            hitPoints = IsPointsWithinShape(otherHitPoints, myhitPoints, transform);
+            containHitPoints = IsPointsWithinShape(otherHitPoints, myhitPoints);
+            hitPoints = containHitPoints;
 
-            if(hitPoints.Count != 0)
+            if (hitPoints.Count != 0)
             {
-                foreach(Vector3 point in IsPointsWithinShape(myhitPoints, otherHitPoints, hitObj))
+                foreach(Vector3 point in IsPointsWithinShape(myhitPoints, otherHitPoints))
                 {
                     hitPoints.Add(point);
                 }
@@ -282,10 +295,33 @@ public class PhysicsComponent : MonoBehaviour
             }
 
             hitPointCenters.Add(hitPointCenter / hitPoints.Count);
+
+            if (Vector3.Dot(axis, transform.position - hitObj.transform.position) < 0)
+            {
+                axis = -axis;
+            }
+
+            if (GR_GameMath.Vector3Dot(-axis, Physics.gravity.normalized) > 0.5f)
+            {
+                if (otherHitPoints.Count == 0) return;
+
+                Ray gravityRay = new Ray(transform.position, Physics.gravity.normalized);
+
+                RaycastHit hit = new();
+                if (Physics.Raycast(gravityRay, out hit, Mathf.Infinity))
+                {
+                    CheckTorqueEnable(otherHitPoints, hit.point);
+                }
+
+                if (torqueEnable)
+                {
+                    CalculatePointOfAction(containHitPoints, otherHitPoints, myhitPoints, hitObj.position, hitPointCenter / hitPoints.Count);
+                }
+            }
         }
     }
 
-    public List<Vector3> IsPointsWithinShape(List<Vector3> hitVertices, List<Vector3> hitPoints, Transform transform)
+    public List<Vector3> IsPointsWithinShape(List<Vector3> hitVertices, List<Vector3> hitPoints)
     {
         Bounds bounds = new Bounds(hitPoints[0], Vector3.zero);
         List<Vector3> containPoints = new();
@@ -323,6 +359,152 @@ public class PhysicsComponent : MonoBehaviour
         }
 
         return containPoints;
+    }
+
+    private void CalculatePointOfAction(List<Vector3> hitPoints, List<Vector3> hitVertices, List<Vector3> myVertices, Vector3 hitObjPosition, Vector3 hitPointCenter)
+    {
+        float[] minDistances = { float.MaxValue, float.MaxValue };
+        Vector3[] hitEdgeVertex = new Vector3[2];
+
+        for (int i = 0; i < hitVertices.Count; i++)
+        {
+            float nowDistance = Vector3.Distance(transform.position, hitVertices[i]);
+            if (minDistances[0] > nowDistance)
+            {
+                if (hitEdgeVertex[0] != Vector3.zero)
+                {
+                    hitEdgeVertex[1] = hitEdgeVertex[0];
+                    minDistances[1] = minDistances[0];
+                }
+                hitEdgeVertex[0] = hitVertices[i];
+                minDistances[0] = nowDistance;
+            }
+            else if (minDistances[1] > nowDistance)
+            {
+                hitEdgeVertex[1] = hitVertices[i];
+                minDistances[1] = nowDistance;
+            }
+        }
+
+        Vector3 position = transform.position;
+        position.y = hitObjPosition.y;
+
+        Vector3 checkVertex = hitEdgeVertex[0];
+        checkVertex.y = hitObjPosition.y;
+
+        if((checkVertex - hitObjPosition).normalized == (position - checkVertex).normalized || hitPoints.Count == 1)
+        {
+            torquePoint = hitEdgeVertex[0];
+        }
+        else
+        {
+            GetCrossPoint(Vector3.Min(hitEdgeVertex[0], hitEdgeVertex[1]), Vector3.Max(hitEdgeVertex[0], hitEdgeVertex[1]), myVertices, hitPointCenter);
+        }
+    }
+
+    private void GetCrossPoint(Vector3 lineStart, Vector3 lineEnd, List<Vector3> vertices, Vector3 hitPointCenter)
+    {
+
+        GetEdges(vertices);
+
+        List<Vector3> points = new();
+
+        for (int i = 0; i < edges.Count; i++)
+        {
+            Vector3 edgeMin = Vector3.Min(edges[i][0], edges[i][1]);
+            Vector3 edgeMax = Vector3.Max(edges[i][0], edges[i][1]);
+
+            Vector3 r = lineStart - edgeMin;
+
+            Vector3 lineDirectionVector = lineEnd - lineStart;
+            Vector3 edgeDirectionVector = edgeMax - edgeMin;
+
+            float a = Vector3.Dot(lineDirectionVector, lineDirectionVector);
+            float b = Vector3.Dot(lineDirectionVector, edgeDirectionVector);
+            float c = Vector3.Dot(edgeDirectionVector, edgeDirectionVector);
+            float d = Vector3.Dot(lineDirectionVector, r);
+            float e = Vector3.Dot(edgeDirectionVector, r);
+
+            float denominator = a * c - b * b;
+
+            if (Mathf.Abs(denominator) < 0.01f) continue;
+
+            float t = (b * e - c * d) / denominator;
+
+            points.Add(lineStart + t * lineDirectionVector);
+        }
+
+        float distance = float.MaxValue;
+        Vector3 crossPoint = Vector3.zero;
+
+        for(int i = 0; i < points.Count; i++)
+        {
+            if (distance > Vector3.Distance(hitPointCenter, points[i]))
+            {
+                crossPoint = points[i];
+                distance = Vector3.Distance(hitPointCenter, points[i]);
+            }
+        }
+
+        crossPoints.Add(crossPoint);
+    }
+
+    private void GetEdges(List<Vector3> vertices)
+    {
+
+        bool[,] connected = new bool[vertices.Count, vertices.Count];
+
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            for (int j = i + 1; j < vertices.Count; j++)
+            {
+                float distance = Vector3.Distance(vertices[i], vertices[j]);
+
+                if (Mathf.Abs(distance - Vector3.Distance(vertices[0], vertices[1])) < 0.01f)
+                {
+                    if (!connected[i, j]) // d•¡Šm”F
+                    {
+                        edges.Add(new[] { vertices[i], vertices[j] });
+                        connected[i, j] = connected[j, i] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    private void CheckTorqueEnable(List<Vector3> hitPoints, Vector3 rayHitPoint)
+    {
+        Bounds bounds = new Bounds(hitPoints[0], Vector3.zero);
+
+        for (int i = 1; i < hitPoints.Count; i++)
+        {
+            bounds.Encapsulate(hitPoints[i]);
+        }
+
+        bounds.Expand(boundsTolerance);
+
+        Vector3 min = bounds.min;
+        Vector3 max = bounds.max;
+
+        Debug.DrawLine(new Vector3(min.x, min.y, min.z), new Vector3(max.x, min.y, min.z), Color.yellow);
+        Debug.DrawLine(new Vector3(min.x, min.y, min.z), new Vector3(min.x, max.y, min.z), Color.yellow);
+        Debug.DrawLine(new Vector3(min.x, min.y, min.z), new Vector3(min.x, min.y, max.z), Color.yellow);
+
+        Debug.DrawLine(new Vector3(max.x, max.y, max.z), new Vector3(min.x, max.y, max.z), Color.yellow);
+        Debug.DrawLine(new Vector3(max.x, max.y, max.z), new Vector3(max.x, min.y, max.z), Color.yellow);
+        Debug.DrawLine(new Vector3(max.x, max.y, max.z), new Vector3(max.x, max.y, min.z), Color.yellow);
+
+        Debug.DrawLine(new Vector3(min.x, max.y, min.z), new Vector3(max.x, max.y, min.z), Color.yellow);
+        Debug.DrawLine(new Vector3(max.x, min.y, min.z), new Vector3(max.x, max.y, min.z), Color.yellow);
+        Debug.DrawLine(new Vector3(min.x, min.y, max.z), new Vector3(max.x, min.y, max.z), Color.yellow);
+
+        Debug.DrawLine(new Vector3(min.x, max.y, max.z), new Vector3(min.x, max.y, min.z), Color.yellow);
+        Debug.DrawLine(new Vector3(min.x, max.y, max.z), new Vector3(min.x, min.y, max.z), Color.yellow);
+        Debug.DrawLine(new Vector3(max.x, min.y, max.z), new Vector3(max.x, min.y, min.z), Color.yellow);
+
+        
+        if (bounds.Contains(rayHitPoint)) torqueEnable = false;
+        else torqueEnable = true;
     }
 
     private Vector3[] GetAxes(Transform objTransform)
@@ -428,7 +610,20 @@ public class PhysicsComponent : MonoBehaviour
             }
         }
 
-        
+        Gizmos.color = Color.cyan;
+        for(int i = 0; i < edges.Count; i++)
+        {
+            Gizmos.DrawLine(edges[i][0], edges[i][1]);
+        }
+
+        Gizmos.color = Color.white;
+        if (torqueEnable)
+        {
+            for (int i = 0; i < crossPoints.Count; i++)
+            {
+                Gizmos.DrawSphere(crossPoints[i], 0.05f);
+            }
+        }
     }
 
     public Vector3 GetMoveVelocity() => moveVelocity;
