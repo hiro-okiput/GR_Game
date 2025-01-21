@@ -7,8 +7,6 @@ using GR_Game.Struct;
 using GR_Game.Enum;
 using GR_Game.Math;
 using System.Linq;
-using static UnityEditor.PlayerSettings;
-using static UnityEditor.Searcher.SearcherWindow.Alignment;
 
 public class PhysicsComponent : MonoBehaviour
 {
@@ -22,6 +20,8 @@ public class PhysicsComponent : MonoBehaviour
     private float mass = 1f;
     [SerializeField]
     private float repulsion = 0f;
+    [SerializeField] 
+    private float momentOfInertia = 1f;
     [SerializeField]
     float frictionCoefficient = 0.5f;
     [SerializeField]
@@ -31,7 +31,7 @@ public class PhysicsComponent : MonoBehaviour
 
     private bool isHit = false;
 
-    private bool torqueEnable = false;
+    private bool torqueEnable = false; 
 
     private Vector3 moveVelocity = Vector3.zero;
 
@@ -138,8 +138,23 @@ public class PhysicsComponent : MonoBehaviour
             CalculateForces(hitMoveVelocityList[i], nomalAxisList[i], hitMassList[i], sinkDirectionList);
         }
 
+        if(torqueEnable)
+        {
+            Vector3 torque = CalculateTorque();
+            CalculateRotate(torque);
+        }
+
         transform.position += moveVelocity;
         transform.position += totalSink;
+    }
+
+    private Vector3 CalculateTorque()
+    {
+
+    }
+
+    private void CalculateRotate(Vector3 torque)
+    {
     }
 
     private void CalculateVelocity(Vector3 hitMoveVelocity, float hitMass, Vector3 normal)
@@ -392,13 +407,24 @@ public class PhysicsComponent : MonoBehaviour
         Vector3 checkVertex = hitEdgeVertex[0];
         checkVertex.y = hitObjPosition.y;
 
-        if((checkVertex - hitObjPosition).normalized == (position - checkVertex).normalized || hitPoints.Count == 1)
+        torquePoint = Vector3.zero;
+
+        if ((checkVertex - hitObjPosition).normalized == (position - checkVertex).normalized || hitPoints.Count == 1)
         {
             torquePoint = hitEdgeVertex[0];
         }
         else
         {
             GetCrossPoint(Vector3.Min(hitEdgeVertex[0], hitEdgeVertex[1]), Vector3.Max(hitEdgeVertex[0], hitEdgeVertex[1]), myVertices, hitPointCenter);
+        }
+
+        if(crossPoints.Count == 2)
+        {
+            torquePoint = (crossPoints[0] + crossPoints[1]) / 2;
+        }
+        else if(crossPoints.Count == 1)
+        {
+            torquePoint = (hitEdgeVertex[0] + crossPoints[0]) / 2;
         }
     }
 
@@ -435,18 +461,20 @@ public class PhysicsComponent : MonoBehaviour
         }
 
         float distance = float.MaxValue;
-        Vector3 crossPoint = Vector3.zero;
 
         for(int i = 0; i < points.Count; i++)
         {
             if (distance > Vector3.Distance(hitPointCenter, points[i]))
             {
-                crossPoint = points[i];
+                crossPoints.Clear();
+                crossPoints.Add(points[i]);
                 distance = Vector3.Distance(hitPointCenter, points[i]);
             }
+            else if(distance == Vector3.Distance(hitPointCenter, points[i]))
+            {
+                crossPoints.Add(points[i]);
+            }
         }
-
-        crossPoints.Add(crossPoint);
     }
 
     private void GetEdges(List<Vector3> vertices)
@@ -623,7 +651,20 @@ public class PhysicsComponent : MonoBehaviour
             {
                 Gizmos.DrawSphere(crossPoints[i], 0.05f);
             }
+
+            Gizmos.color = Color.white;
+
+            if (torquePoint != Vector3.zero)
+            {
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawSphere(torquePoint, 0.05f);
+            }
         }
+    }
+
+    private void SimpleRotate()
+    {
+
     }
 
     public Vector3 GetMoveVelocity() => moveVelocity;
