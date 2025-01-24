@@ -14,26 +14,35 @@ public class PhysicsComponent : MonoBehaviour
     private bool gravityEnable = true;
     
     [SerializeField]
-    private float boundsTolerance = 0.01f;
+    private float tolerance = 0.01f;
 
     [SerializeField]
     private float mass = 1f;
     [SerializeField]
     private float repulsion = 0f;
     [SerializeField] 
-    private float momentOfInertia = 1f;
+    private float angularDrag = 1f;
     [SerializeField]
     float frictionCoefficient = 0.5f;
     [SerializeField]
     float staticFrictionCoefficient = 0.6f;
 
+    [SerializeField]
+    LayerMask rayLayer;
+
+    [SerializeField]
+    Vector3 nowAngularAcceleration = Vector3.zero;
+
     PhysicsComponent hitPhysicsCom;
 
     private bool isHit = false;
 
-    private bool torqueEnable = false; 
+    private bool torqueEnable = false;
 
+    [SerializeField]
     private Vector3 moveVelocity = Vector3.zero;
+
+    private Vector3 nowSink = Vector3.zero;
 
     private List<Vector3> hitPointCenters = new();
 
@@ -55,6 +64,12 @@ public class PhysicsComponent : MonoBehaviour
 
     private Vector3 torquePoint = Vector3.zero;
 
+    private Vector3 angularVelocity = Vector3.zero;
+
+    private Vector3 slidingVelocity = Vector3.zero;
+
+    private float normalForce = 0;
+
     void Start()
     {
 
@@ -70,22 +85,26 @@ public class PhysicsComponent : MonoBehaviour
     {
         if (gravityEnable)
         {
-            if(gravity == Vector3.zero) gravity = GetGravity() * Physics.gravity * Time.fixedDeltaTime * 0.03f;
-            if(!isHit) moveVelocity += gravity;
+            if (gravity == Vector3.zero) gravity = GetGravity() * Physics.gravity;
+            if (!isHit)
+            {
+                moveVelocity += gravity * Time.fixedDeltaTime;
+            }
         }
 
         Bounds myBounds = GetComponent<Collider>().bounds;
 
-        myBounds.Expand(boundsTolerance);
-
         List<Collider> colliders = Physics.OverlapBox(myBounds.center, myBounds.extents, transform.rotation).ToList();
 
         Vector3 totalSink = Vector3.zero;
+        nowSink = Vector3.zero;
+        torquePoint = transform.position;
 
         isHit = false;
+        torqueEnable = false;
 
         hitPointCenters.Clear();
-        contactForces.Clear(); 
+        contactForces.Clear();
         hitMoveVelocityList.Clear();
         hitMassList.Clear();
         sinkDirectionList.Clear();
@@ -119,6 +138,8 @@ public class PhysicsComponent : MonoBehaviour
 
                 CalculateSink(collider.gameObject.transform, out sinkDirection, out sinkDepth);
 
+                if (sinkDirection == Vector3.zero) continue;
+
                 sinkDirectionList.Add(sinkDirection);
                 nomalAxisList.Add(sinkDirection);
 
@@ -127,34 +148,103 @@ public class PhysicsComponent : MonoBehaviour
                 if (GR_GameMath.Vector3Dot(sinkDirection, -moveVelocity.normalized) > 0.5f || moveVelocity != Vector3.zero)
                 {
                     if (hitPhysicsCom != null) CalculateVelocity(hitMoveVelocity, hitMass, sinkDirection);
-                    else moveVelocity = Vector3.zero;
-
-                    isHit = true;
+                    else moveVelocity -= Vector3.Dot(moveVelocity, sinkDirection) * sinkDirection;
                 }
+
+                isHit = true;
             }
         }
-        for(int i = 0; i < sinkDirectionList.Count; i++)
+        for (int i = 0; i < sinkDirectionList.Count; i++)
         {
-            CalculateForces(hitMoveVelocityList[i], nomalAxisList[i], hitMassList[i], sinkDirectionList);
+            if (isHit)
+            {
+                CalculateForces(hitMoveVelocityList[i], nomalAxisList[i], hitMassList[i], sinkDirectionList);
+            }
         }
 
-        if(torqueEnable)
+        if (torqueEnable)
         {
-            Vector3 torque = CalculateTorque();
-            CalculateRotate(torque);
+            CalculateAngularDrug();
+
+            CalculateAngularVelocity();
         }
 
-        transform.position += moveVelocity;
+        if (angularVelocity != Vector3.zero)
+        {
+            CalculateRotate();
+        }
+
+        transform.position += moveVelocity * Time.fixedDeltaTime;
         transform.position += totalSink;
-    }
 
-    private Vector3 CalculateTorque()
-    {
+        nowSink = totalSink;
 
     }
 
-    private void CalculateRotate(Vector3 torque)
+    private void CalculateAngularVelocity()
     {
+        Vector3 scale = transform.localScale;
+
+        Vector3 inertiaTensor = new(
+            mass * (scale.y * scale.y + scale.z * scale.z) / 12,
+            mass * (scale.x * scale.x + scale.z * scale.z) / 12,
+            mass * (scale.x * scale.x + scale.y * scale.y) / 12);
+
+        Vector3 force = mass * gravity;
+
+        Vector3 r =  transform.position - torquePoint;
+
+        Vector3 torque = Vector3.Cross(r, force);
+
+        Vector3 angularAcceleration = new(
+            torque.x != 0 ? torque.x / inertiaTensor.x : 0,
+            torque.y != 0 ? torque.y / inertiaTensor.y : 0,
+            torque.z != 0 ? torque.z / inertiaTensor.z : 0);
+
+        Vector3 predictedAngularVelocity = angularVelocity + angularAcceleration * Time.fixedDeltaTime;
+
+        if (Vector3.Dot(angularVelocity, predictedAngularVelocity) < 0)
+        {
+            torqueEnable = false;
+            angularVelocity = Vector3.zero;
+            return;
+        }
+
+        angularVelocity += angularAcceleration * Time.fixedDeltaTime;
+
+        nowAngularAcceleration = angularAcceleration;
+    }
+
+    private void CalculateAngularDrug()
+    {
+        Vector3 scale = transform.localScale;
+
+        Vector3 inertiaTensor = new(
+            mass * (scale.y * scale.y + scale.z * scale.z) / 12,
+            mass * (scale.x * scale.x + scale.z * scale.z) / 12,
+            mass * (scale.x * scale.x + scale.y * scale.y) / 12);
+
+        Vector3 dragTorque = -angularDrag * angularVelocity;
+
+        Vector3 angularAcceleration = new(
+            dragTorque.x != 0 ? dragTorque.x / inertiaTensor.x : 0,
+            dragTorque.y != 0 ? dragTorque.y / inertiaTensor.y : 0,
+            dragTorque.z != 0 ? dragTorque.z / inertiaTensor.z : 0);
+
+        angularVelocity += angularAcceleration * Time.fixedDeltaTime;
+    }
+
+    private void CalculateRotate()
+    {
+        Vector3 r = transform.position - torquePoint;
+
+        moveVelocity += GR_GameMath.Vector3Cross(angularVelocity, r);
+
+        Quaternion rotation = transform.rotation;
+
+        rotation = rotation * Quaternion.Euler(angularVelocity * Mathf.Rad2Deg * Time.fixedDeltaTime);
+
+        transform.rotation = rotation;
     }
 
     private void CalculateVelocity(Vector3 hitMoveVelocity, float hitMass, Vector3 normal)
@@ -198,7 +288,10 @@ public class PhysicsComponent : MonoBehaviour
 
             float overlap = CalculateOverlap(checkAxes[i], myVertices, hitVertices, out nowProjectionVal);
 
-            if (overlap < 0) return;
+            if (overlap < 0)
+            {
+                return;
+            }
 
             if (overlap < minOverlap)
             {
@@ -208,12 +301,12 @@ public class PhysicsComponent : MonoBehaviour
             }
         }
 
-        CalculateHitPoint(minOverlapAxis, myVertices, hitVertices, checkProjectionVal, hitObj);
-
         if (Vector3.Dot(minOverlapAxis, transform.position - hitObj.transform.position) < 0)
         {
             minOverlapAxis = -minOverlapAxis;
         }
+
+        CalculateHitPoint(minOverlapAxis, minOverlap, myVertices, hitVertices, checkProjectionVal, hitObj);
 
         direction = minOverlapAxis;
         depth = minOverlap;
@@ -221,15 +314,19 @@ public class PhysicsComponent : MonoBehaviour
 
     private void CalculateForces(Vector3 hitMoveVelocity, Vector3 nomalAxis, float hitMass, List<Vector3> sinkDirectionList)
     {
+        normalForce = 0;
+
         float relativeVelocity = Vector3.Dot(moveVelocity - hitMoveVelocity, nomalAxis);
 
         float impulse = -(1 + repulsion) * relativeVelocity / ((1 / mass) + (1 / hitMass));
 
-        float normalForce = impulse / Time.fixedDeltaTime;
+        normalForce = impulse / Time.fixedDeltaTime;
 
-        float gravityNormalForce = Vector3.Dot(GetGravity() * gravity * mass, nomalAxis);
+        float gravityNormalForce = Vector3.Dot(gravity * mass, nomalAxis);
 
-        contactForces.Add((normalForce + gravityNormalForce) * nomalAxis);
+        normalForce += gravityNormalForce;
+
+        contactForces.Add(normalForce * nomalAxis);
 
         Vector3 tangentGravity = gravity - Vector3.Dot(gravity, nomalAxis) * nomalAxis;
 
@@ -237,7 +334,7 @@ public class PhysicsComponent : MonoBehaviour
 
         float tangentSpeed = tangentVelocity.magnitude;
         
-        float maxStaticFriction = staticFrictionCoefficient * mass * gravity.magnitude;
+        float maxStaticFriction = staticFrictionCoefficient * mass * Mathf.Abs(normalForce);
 
         if (tangentSpeed == 0 && tangentGravity.magnitude <= maxStaticFriction)
         {
@@ -248,7 +345,7 @@ public class PhysicsComponent : MonoBehaviour
 
         if (tangentSpeed > 0)
         {
-            float frictionMagnitude = Mathf.Min(frictionCoefficient * mass * (gravity).magnitude, tangentSpeed);
+            float frictionMagnitude = Mathf.Min(frictionCoefficient * mass * Mathf.Abs(normalForce),tangentSpeed);
 
             frictionForce = -tangentVelocity.normalized * frictionMagnitude;
 
@@ -264,26 +361,35 @@ public class PhysicsComponent : MonoBehaviour
 
         contactForces.Add(slidingForce);
 
-        moveVelocity += slidingForce;
+        moveVelocity = slidingForce / mass * Time.fixedDeltaTime;
     }
 
-    private void CalculateHitPoint(Vector3 axis, List<Vector3> myVertices, List<Vector3> hitVertices, float checkProjectionVal, Transform hitObj)
+    private void CalculateHitPoint(Vector3 axis,float depth, List<Vector3> myVertices, List<Vector3> hitVertices, float checkProjectionVal, Transform hitObj)
     {
         List<Vector3> myhitPoints = new();
         List<Vector3> otherHitPoints = new();
         List<Vector3> hitPoints;
         List<Vector3> containHitPoints;
 
+        if (Vector3.Dot(axis, transform.position - hitObj.transform.position) < 0)
+        {
+            checkProjectionVal -= depth;
+        }
+        else
+        {
+            checkProjectionVal += depth;
+        }
+
         for (int i = 0; i < myVertices.Count; i++)
         {
-            float projection = GR_GameMath.Vector3Dot(myVertices[i], axis);
-            if (Mathf.Abs(projection - checkProjectionVal) < 0.01f) myhitPoints.Add(myVertices[i]);
+            float projection = GR_GameMath.Vector3Dot(myVertices[i] + axis * depth, axis);
+            if (Mathf.Abs(Mathf.Abs(projection) - Mathf.Abs(checkProjectionVal)) < 0.01f) myhitPoints.Add(myVertices[i]);
         }
 
         for (int i = 0; i < hitVertices.Count; i++)
         {
             float projection = GR_GameMath.Vector3Dot(hitVertices[i], axis);
-            if (Mathf.Abs(projection - checkProjectionVal) < 0.01f) otherHitPoints.Add(hitVertices[i]);
+            if (Mathf.Abs(Mathf.Abs(projection) - Mathf.Abs(checkProjectionVal)) < 0.01f) otherHitPoints.Add(hitVertices[i]);
         }
 
         if (myhitPoints.Count > 1)
@@ -311,21 +417,34 @@ public class PhysicsComponent : MonoBehaviour
 
             hitPointCenters.Add(hitPointCenter / hitPoints.Count);
 
-            if (Vector3.Dot(axis, transform.position - hitObj.transform.position) < 0)
+            if (GR_GameMath.Vector3Dot(-axis, gravity.normalized) > 0.5f)
             {
-                axis = -axis;
-            }
-
-            if (GR_GameMath.Vector3Dot(-axis, Physics.gravity.normalized) > 0.5f)
-            {
-                if (otherHitPoints.Count == 0) return;
-
-                Ray gravityRay = new Ray(transform.position, Physics.gravity.normalized);
-
-                RaycastHit hit = new();
-                if (Physics.Raycast(gravityRay, out hit, Mathf.Infinity))
+                if (otherHitPoints.Count == 0)
                 {
-                    CheckTorqueEnable(otherHitPoints, hit.point);
+                    return;
+                }
+                else if (hitPoints.Count == 4)
+                {
+                    torqueEnable = false;
+                    angularVelocity = Vector3.zero;
+                }
+                else if (hitPoints.Count < 3)
+                {
+                    torquePoint = hitPointCenter / hitPoints.Count;
+                    torqueEnable = true;
+                    return;
+                }
+
+                Ray gravityRay = new Ray(transform.position, gravity.normalized);
+
+                RaycastHit hit;
+                if (Physics.Raycast(gravityRay, out hit, Mathf.Infinity, rayLayer))
+                {
+                        CheckTorqueEnable(otherHitPoints, hit.point);
+                }
+                else
+                {
+                    torqueEnable = true;
                 }
 
                 if (torqueEnable)
@@ -346,7 +465,7 @@ public class PhysicsComponent : MonoBehaviour
             bounds.Encapsulate(hitPoints[i]);
         }
 
-        bounds.Expand(boundsTolerance);
+        bounds.Expand(tolerance);
 
         Vector3 min = bounds.min;
         Vector3 max = bounds.max;
@@ -509,7 +628,7 @@ public class PhysicsComponent : MonoBehaviour
             bounds.Encapsulate(hitPoints[i]);
         }
 
-        bounds.Expand(boundsTolerance);
+        bounds.Expand(tolerance);
 
         Vector3 min = bounds.min;
         Vector3 max = bounds.max;
@@ -530,9 +649,11 @@ public class PhysicsComponent : MonoBehaviour
         Debug.DrawLine(new Vector3(min.x, max.y, max.z), new Vector3(min.x, min.y, max.z), Color.yellow);
         Debug.DrawLine(new Vector3(max.x, min.y, max.z), new Vector3(max.x, min.y, min.z), Color.yellow);
 
-        
-        if (bounds.Contains(rayHitPoint)) torqueEnable = false;
-        else torqueEnable = true;
+        if (hitPhysicsCom == null)
+        {
+            torqueEnable = !bounds.Contains(rayHitPoint);
+        }
+        else torqueEnable = !bounds.Contains(rayHitPoint + hitPhysicsCom.GetNowSink());
     }
 
     private Vector3[] GetAxes(Transform objTransform)
@@ -612,7 +733,7 @@ public class PhysicsComponent : MonoBehaviour
             hitMax = Mathf.Max(hitMax, projection);
         }
 
-        if (myMax < hitMin || hitMax < myMin)
+        if ((myMax < hitMin && hitMin - myMax > tolerance) || (hitMax < myMin && myMin - hitMax > tolerance))
         {
             return -1;
         }
@@ -620,7 +741,9 @@ public class PhysicsComponent : MonoBehaviour
         if (Mathf.Min(myMax, hitMax) == myMax) checkProjectionVal = myMax;
         if (Mathf.Max(myMin, hitMin) == myMin) checkProjectionVal = myMin;
 
-        return Mathf.Min(myMax, hitMax) - Mathf.Max(myMin, hitMin);
+        float overLap = Mathf.Min(myMax, hitMax) - Mathf.Max(myMin, hitMin);
+
+        return overLap < 0 ? 0 : overLap;
     }
 
     private void OnDrawGizmos()
@@ -628,7 +751,7 @@ public class PhysicsComponent : MonoBehaviour
         for (int i = 0; i < hitPointCenters.Count; i++)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawSphere(hitPointCenters[i], 0.05f);
+            Gizmos.DrawSphere(hitPointCenters[i], 0.025f);
 
             Gizmos.color = Color.blue;
             for (int j = 0; j < contactForces.Count; j++)
@@ -649,7 +772,7 @@ public class PhysicsComponent : MonoBehaviour
         {
             for (int i = 0; i < crossPoints.Count; i++)
             {
-                Gizmos.DrawSphere(crossPoints[i], 0.05f);
+                Gizmos.DrawSphere(crossPoints[i], 0.025f);
             }
 
             Gizmos.color = Color.white;
@@ -668,6 +791,7 @@ public class PhysicsComponent : MonoBehaviour
     }
 
     public Vector3 GetMoveVelocity() => moveVelocity;
+    public Vector3 GetNowSink() => nowSink;
 
     public float GetMass() => mass;
 }

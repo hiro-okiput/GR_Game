@@ -132,4 +132,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gravityEnable: 1
-  boundsTolerance: 0.01
+  tolerance: 0.01
+  mass: 1
+  repulsion: 0
+  momentOfInertia: 1
+  frictionCoefficient: 0.5
+  staticFrictionCoefficient: 0.6
+  rayLayer:
+    serializedVersion: 2
+    m_Bits: 64

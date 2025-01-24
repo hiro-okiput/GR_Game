@@ -7,6 +7,7 @@ using UnityEngine;
 public class Shape : MonoBehaviour
 {
     private Camera mainCamera;
+    [SerializeField]
     private bool enablePysics = false; 
 
     // Update is called once per frame
@@ -24,6 +25,7 @@ public class Shape : MonoBehaviour
             if(Input.GetMouseButtonDown((int)MouseButton.Left))
             {
                 enablePysics = true;
+                gameObject.layer = LayerMask.NameToLayer("PhysicsObj");
                 GetComponent<PhysicsComponent>().enabled = true;
             }
         }
