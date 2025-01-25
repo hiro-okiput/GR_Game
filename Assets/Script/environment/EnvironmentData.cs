@@ -5,7 +5,7 @@ namespace GR_Game
 {
     static public class EnvironmentData
     {
-        static private float gravity = 1.0f;    //d—Í
+        static private float gravity = 1f;    //d—Í
         static private TimeData currentTime;    //Œ“ú“ú
         static private float windSpeed;         //•—‘¬
         static private float windSpeedMin;      //•—‘¬_Å’á
